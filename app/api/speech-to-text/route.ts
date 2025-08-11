@@ -18,15 +18,15 @@ export async function POST(request: NextRequest) {
     const audioBuffer = await audioFile.arrayBuffer();
     const base64Audio = Buffer.from(audioBuffer).toString('base64');
     
-    // Use GPT-4o with audio input through chat completions
+    // Use GPT-4o with audio through direct API call (bypassing SDK types)
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-audio-preview', // GPT-4o with audio capabilities
-      modalities: ['text', 'audio'],
+      model: 'gpt-4o-audio-preview',
+      modalities: ['text', 'audio'] as any, // Type assertion to bypass SDK limitation
       messages: [
         {
           role: 'system',
-          content: `You are a spelling test assistant. The user will speak letters phonetically to spell a word.
-          Listen carefully and convert the phonetic pronunciation to actual letters.
+          content: `You are a spelling test assistant. The user has spoken letters phonetically to spell a word.
+          Convert the phonetic pronunciation to actual letters.
           
           Common phonetic pronunciations:
           - "ay" or "aye" = A
@@ -67,22 +67,21 @@ export async function POST(request: NextRequest) {
           role: 'user',
           content: [
             {
-              type: 'text',
+              type: 'text' as const,
               text: `The user is trying to spell the word "${targetWord}". Listen to their phonetic spelling in the audio.`
             },
             {
-              type: 'input_audio',
+              type: 'input_audio' as any, // Type assertion to bypass SDK limitation
               input_audio: {
                 data: base64Audio,
                 format: 'webm'
               }
-            }
+            } as any
           ]
         }
       ],
       response_format: { type: 'json_object' },
-      // temperature not supported by some models - use default
-      max_tokens: 100,
+      max_tokens: 50,
     });
     
     const result = JSON.parse(response.choices[0].message.content || '{}');
