@@ -159,11 +159,14 @@ export default function SpellingTest() {
         body: formData,
       });
       
-      const { text: rawTranscription, spelledWord, error } = await transcriptionResponse.json();
+      const transcriptionData = await transcriptionResponse.json();
       
-      if (error) {
-        throw new Error(error);
+      if (transcriptionData.error) {
+        console.error('STT API Error:', transcriptionData);
+        throw new Error(transcriptionData.details || transcriptionData.error);
       }
+      
+      const { text: rawTranscription, spelledWord } = transcriptionData;
       
       console.log('Raw transcription:', rawTranscription);
       console.log('Interpreted spelling:', spelledWord);

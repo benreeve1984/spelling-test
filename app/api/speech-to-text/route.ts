@@ -14,24 +14,19 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // IMPORTANT: DO NOT CHANGE THIS MODEL - MUST USE gpt-4o-audio-2025-01-20, NOT whisper-1
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: 'gpt-4o-audio-2025-01-20', // DO NOT CHANGE TO whisper-1
-      language: 'en',
-      prompt: 'The user is spelling a word phonetically using letter names like "ay", "bee", "see", etc.',
-    });
+    // Convert audio to base64 for GPT-4o audio input
+    const audioBuffer = await audioFile.arrayBuffer();
+    const base64Audio = Buffer.from(audioBuffer).toString('base64');
     
-    console.log('Raw transcription:', transcription.text);
-    
-    // IMPORTANT: DO NOT CHANGE THIS MODEL - MUST USE gpt-5-mini for interpretation
-    const interpretation = await openai.chat.completions.create({
-      model: 'gpt-5-mini', // DO NOT CHANGE TO gpt-4o-mini
+    // Use GPT-4o with audio input through chat completions
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-audio-preview', // GPT-4o with audio capabilities
+      modalities: ['text', 'audio'],
       messages: [
         {
           role: 'system',
-          content: `You are a spelling test assistant. The user has spoken letters phonetically to spell a word.
-          Convert the phonetic pronunciation to actual letters.
+          content: `You are a spelling test assistant. The user will speak letters phonetically to spell a word.
+          Listen carefully and convert the phonetic pronunciation to actual letters.
           
           Common phonetic pronunciations:
           - "ay" or "aye" = A
@@ -62,33 +57,52 @@ export async function POST(request: NextRequest) {
           - "zed" or "zee" = Z
           
           Return a JSON object with:
+          - "transcription": what you heard the user say
           - "spelling": the word spelled out in lowercase letters
           
-          For example, if the input is "bee eye gee", return:
-          {"spelling": "big"}`
+          For example, if you hear "bee eye gee", return:
+          {"transcription": "bee eye gee", "spelling": "big"}`
         },
         {
           role: 'user',
-          content: `The user said: "${transcription.text}"\n\nThey are trying to spell the word "${targetWord}". What letters did they spell?`
+          content: [
+            {
+              type: 'text',
+              text: `The user is trying to spell the word "${targetWord}". Listen to their phonetic spelling in the audio.`
+            },
+            {
+              type: 'input_audio',
+              input_audio: {
+                data: base64Audio,
+                format: 'webm'
+              }
+            }
+          ]
         }
       ],
       response_format: { type: 'json_object' },
-      // temperature not supported by gpt-5-mini - uses default of 1
-      max_tokens: 50,
+      // temperature not supported by some models - use default
+      max_tokens: 100,
     });
     
-    const result = JSON.parse(interpretation.choices[0].message.content || '{}');
+    const result = JSON.parse(response.choices[0].message.content || '{}');
     
+    console.log('Transcription:', result.transcription);
     console.log('Interpreted spelling:', result.spelling);
     
     return NextResponse.json({
-      text: transcription.text,
+      text: result.transcription || '',
       spelledWord: result.spelling || '',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error processing audio:', error);
+    console.error('Error details:', error?.response?.data || error?.message);
     return NextResponse.json(
-      { error: 'Failed to process audio' },
+      { 
+        error: 'Failed to process audio',
+        details: error?.message || 'Unknown error',
+        modelError: error?.response?.data?.error?.message
+      },
       { status: 500 }
     );
   }
