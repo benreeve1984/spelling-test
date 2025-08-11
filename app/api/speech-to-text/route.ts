@@ -14,19 +14,19 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Use gpt-4o-audio for transcription
+    // IMPORTANT: DO NOT CHANGE THIS MODEL - MUST USE gpt-4o-audio-2025-01-20, NOT whisper-1
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
-      model: 'gpt-4o-audio-2025-01-20',
+      model: 'gpt-4o-audio-2025-01-20', // DO NOT CHANGE TO whisper-1
       language: 'en',
       prompt: 'The user is spelling a word phonetically using letter names like "ay", "bee", "see", etc.',
     });
     
     console.log('Raw transcription:', transcription.text);
     
-    // Then use gpt-5-mini to interpret the phonetic spelling  
+    // IMPORTANT: DO NOT CHANGE THIS MODEL - MUST USE gpt-5-mini for interpretation
     const interpretation = await openai.chat.completions.create({
-      model: 'gpt-5-mini',
+      model: 'gpt-5-mini', // DO NOT CHANGE TO gpt-4o-mini
       messages: [
         {
           role: 'system',

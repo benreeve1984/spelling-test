@@ -13,7 +13,13 @@
 ### Technical Architecture
 - **Framework**: Next.js 14+ with App Router for modern React patterns
 - **Database**: Supabase for real-time data and easy Vercel integration
-- **AI Integration**: OpenAI APIs (GPT-4o-mini for generation, Whisper for STT, TTS for speech)
+- **AI Integration**: OpenAI APIs - IMPORTANT MODEL SPECIFICATIONS:
+  - **DO NOT CHANGE THESE MODELS**:
+  - Word Generation: `gpt-5-mini` (NOT gpt-4o-mini)
+  - Audio Transcription: `gpt-4o-audio-2025-01-20` (NOT whisper-1)
+  - Phonetic Interpretation: `gpt-5-mini` (NOT gpt-4o-mini)
+  - Feedback Generation: `gpt-5-mini` (NOT gpt-4o-mini)
+  - Text-to-Speech: `tts-1` (standard)
 - **Deployment**: Vercel for CI/CD with GitHub integration
 - **Type Safety**: TypeScript throughout for maintainable code
 

@@ -59,8 +59,9 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // IMPORTANT: DO NOT CHANGE THIS MODEL - MUST USE gpt-5-mini
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-mini",
+      model: "gpt-5-mini", // DO NOT CHANGE TO gpt-4o-mini
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
