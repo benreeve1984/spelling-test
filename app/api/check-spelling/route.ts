@@ -1,20 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkSpelling } from '@/app/lib/phonetic';
+import openai from '@/app/lib/openai';
 
 export async function POST(request: NextRequest) {
   try {
-    const { word, phoneticSpelling } = await request.json();
+    const { word, userSpelling } = await request.json();
     
-    if (!word || !phoneticSpelling) {
+    if (!word || !userSpelling) {
       return NextResponse.json(
-        { error: 'Word and phonetic spelling are required' },
+        { error: 'Word and user spelling are required' },
         { status: 400 }
       );
     }
     
-    const result = checkSpelling(word, phoneticSpelling);
+    const correctWord = word.toLowerCase();
+    const userWord = userSpelling.toLowerCase();
+    const isCorrect = correctWord === userWord;
     
-    return NextResponse.json(result);
+    let feedback = '';
+    
+    if (isCorrect) {
+      feedback = 'Perfect! You spelled it correctly.';
+    } else {
+      // Use GPT-5-mini to generate helpful feedback
+      const feedbackResponse = await openai.chat.completions.create({
+        model: 'gpt-5-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful spelling tutor. Provide brief, encouraging feedback about a spelling mistake.'
+          },
+          {
+            role: 'user',
+            content: `The correct spelling is "${word}". The student spelled it as "${userSpelling}". Give brief, specific feedback about what went wrong and encouragement to try again. Keep it under 2 sentences.`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 100,
+      });
+      
+      feedback = feedbackResponse.choices[0].message.content || `The correct spelling is "${word}".`;
+    }
+    
+    return NextResponse.json({
+      isCorrect,
+      userSpelling: userWord,
+      feedback,
+    });
   } catch (error) {
     console.error('Error checking spelling:', error);
     return NextResponse.json(

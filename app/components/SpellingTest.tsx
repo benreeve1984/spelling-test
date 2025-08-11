@@ -15,6 +15,7 @@ export default function SpellingTest() {
   const [userPrompt, setUserPrompt] = useState('');
   const [useHistory, setUseHistory] = useState(true);
   const [showResult, setShowResult] = useState(false);
+  const [transcribedText, setTranscribedText] = useState<string>('');
   const [lastResult, setLastResult] = useState<{
     isCorrect: boolean;
     userSpelling: string;
@@ -76,22 +77,42 @@ export default function SpellingTest() {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100,
+        } 
+      });
+      
+      // Use a more compatible format
+      const options = {
+        mimeType: 'audio/webm;codecs=opus'
+      };
+      
+      // Fallback if the preferred format isn't supported
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options.mimeType = 'audio/webm';
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
       
       audioChunksRef.current = [];
       
       mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
       
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: options.mimeType });
         await processRecording(audioBlob);
       };
       
       mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start();
+      // Record in chunks to ensure we capture all audio
+      mediaRecorder.start(100); // Capture in 100ms chunks
       recordingStartTimeRef.current = Date.now();
       setIsRecording(true);
     } catch (error) {
@@ -115,17 +136,30 @@ export default function SpellingTest() {
     const audioDuration = Date.now() - recordingStartTimeRef.current;
     
     try {
-      // Convert to WAV format for better compatibility
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.webm');
+      // Create a proper audio file with the correct extension
+      const audioFile = new File([audioBlob], 'recording.webm', { 
+        type: audioBlob.type || 'audio/webm' 
+      });
       
-      // Get transcription
+      const formData = new FormData();
+      formData.append('audio', audioFile);
+      formData.append('targetWord', currentWord.word);
+      
+      // Get transcription and interpretation
       const transcriptionResponse = await fetch('/api/speech-to-text', {
         method: 'POST',
         body: formData,
       });
       
-      const { text: phoneticSpelling } = await transcriptionResponse.json();
+      const { text: rawTranscription, spelledWord, error } = await transcriptionResponse.json();
+      
+      if (error) {
+        throw new Error(error);
+      }
+      
+      console.log('Raw transcription:', rawTranscription);
+      console.log('Interpreted spelling:', spelledWord);
+      setTranscribedText(rawTranscription); // Store raw for display
       
       // Check spelling
       const checkResponse = await fetch('/api/check-spelling', {
@@ -133,7 +167,7 @@ export default function SpellingTest() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           word: currentWord.word,
-          phoneticSpelling,
+          userSpelling: spelledWord,
         }),
       });
       
@@ -180,6 +214,7 @@ export default function SpellingTest() {
       setCurrentWordIndex(currentWordIndex + 1);
       setShowResult(false);
       setLastResult(null);
+      setTranscribedText('');
     } else {
       toast.success('Test completed! Generate new words to continue.');
     }
@@ -285,6 +320,11 @@ export default function SpellingTest() {
                   <div className={`text-lg ${lastResult?.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
                     Your spelling: {lastResult?.userSpelling}
                   </div>
+                  {transcribedText && (
+                    <div className="text-sm text-gray-500">
+                      What we heard: "{transcribedText}"
+                    </div>
+                  )}
                   <div className="text-sm text-gray-600">{lastResult?.feedback}</div>
                 </div>
               )}
