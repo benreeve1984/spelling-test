@@ -14,22 +14,28 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Convert audio file to base64 for GPT-4o audio input
-    const arrayBuffer = await audioFile.arrayBuffer();
-    const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+    // Use the new gpt-4o-audio model for transcription
+    const transcription = await openai.audio.transcriptions.create({
+      file: audioFile,
+      model: 'gpt-4o-audio-2025-01-20',
+      language: 'en',
+      prompt: 'The user is spelling a word phonetically using letter names like "ay", "bee", "see", etc.',
+    });
     
-    // Use GPT-4o-audio-preview for audio input in chat completions
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-audio-preview',
+    console.log('Raw transcription:', transcription.text);
+    
+    // Then use gpt-5-mini to interpret the phonetic spelling  
+    const interpretation = await openai.chat.completions.create({
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
-          content: `You are a spelling test assistant. The user will speak letters phonetically to spell a word.
-          Listen to the audio and convert the phonetic pronunciation to actual letters.
+          content: `You are a spelling test assistant. The user has spoken letters phonetically to spell a word.
+          Convert the phonetic pronunciation to actual letters.
           
           Common phonetic pronunciations:
           - "ay" or "aye" = A
-          - "bee" or "be" = B
+          - "bee" or "be" = B  
           - "see" or "sea" = C
           - "dee" = D
           - "ee" or "e" = E
@@ -55,42 +61,28 @@ export async function POST(request: NextRequest) {
           - "why" or "y" = Y
           - "zed" or "zee" = Z
           
-          Return a JSON object with two fields:
-          1. "transcription": what you heard the user say
-          2. "spelling": the word spelled out in lowercase letters
+          Return a JSON object with:
+          - "spelling": the word spelled out in lowercase letters
           
-          For example, if you hear "bee eye gee", return:
-          {"transcription": "bee eye gee", "spelling": "big"}`
+          For example, if the input is "bee eye gee", return:
+          {"spelling": "big"}`
         },
         {
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `The user is trying to spell the word "${targetWord}". Listen to their phonetic spelling.`
-            },
-            {
-              type: 'input_audio',
-              input_audio: {
-                data: base64Audio,
-                format: 'webm'
-              }
-            }
-          ]
+          content: `The user said: "${transcription.text}"\n\nThey are trying to spell the word "${targetWord}". What letters did they spell?`
         }
       ],
       response_format: { type: 'json_object' },
       temperature: 0.2,
-      max_tokens: 100,
+      max_tokens: 50,
     });
     
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const result = JSON.parse(interpretation.choices[0].message.content || '{}');
     
-    console.log('Transcription:', result.transcription);
     console.log('Interpreted spelling:', result.spelling);
     
     return NextResponse.json({
-      text: result.transcription || '',
+      text: transcription.text,
       spelledWord: result.spelling || '',
     });
   } catch (error) {

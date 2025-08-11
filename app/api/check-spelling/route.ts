@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     if (isCorrect) {
       feedback = 'Perfect! You spelled it correctly.';
     } else {
-      // Use GPT-5-mini to generate helpful feedback
+      // Use gpt-5-mini to generate helpful feedback
       const feedbackResponse = await openai.chat.completions.create({
         model: 'gpt-5-mini',
         messages: [
