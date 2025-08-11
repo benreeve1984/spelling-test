@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     let userPrompt = prompt || "Generate 10 spelling words appropriate for an 11-year-old student.";
     
     // If using history, fetch recent performance
-    if (useHistory) {
+    if (useHistory && supabase) {
       const { data: recentAttempts } = await supabase
         .from('test_attempts')
         .select('word_id, is_correct, words(word)')
@@ -77,32 +77,34 @@ export async function POST(request: NextRequest) {
     const parsedResponse = JSON.parse(responseText);
     const validated = GeneratedWordsSchema.parse(parsedResponse);
     
-    // Store words in database
-    for (const word of validated.words) {
-      const { data: existingWord } = await supabase
-        .from('words')
-        .select('id')
-        .eq('word', word.word)
-        .single();
-      
-      if (!existingWord) {
-        const { data: newWord } = await supabase
+    // Store words in database if Supabase is configured
+    if (supabase) {
+      for (const word of validated.words) {
+        const { data: existingWord } = await supabase
           .from('words')
-          .insert({
-            word: word.word,
-            difficulty_level: word.difficulty,
-            phonetic_pattern: word.phoneticPattern,
-          })
           .select('id')
+          .eq('word', word.word)
           .single();
         
-        if (newWord) {
-          await supabase
-            .from('word_contexts')
+        if (!existingWord) {
+          const { data: newWord } = await supabase
+            .from('words')
             .insert({
-              word_id: newWord.id,
-              context_sentence: word.contextSentence,
-            });
+              word: word.word,
+              difficulty_level: word.difficulty,
+              phonetic_pattern: word.phoneticPattern,
+            })
+            .select('id')
+            .single();
+          
+          if (newWord) {
+            await supabase
+              .from('word_contexts')
+              .insert({
+                word_id: newWord.id,
+                context_sentence: word.contextSentence,
+              });
+          }
         }
       }
     }

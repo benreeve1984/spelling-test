@@ -14,6 +14,15 @@ export async function POST(request: NextRequest) {
       difficultySetting 
     } = await request.json();
     
+    // If Supabase is not configured, return success without saving
+    if (!supabase) {
+      return NextResponse.json({
+        success: true,
+        sessionId: 'local-session',
+        attemptId: 'local-attempt',
+      });
+    }
+    
     // Create or get session
     let finalSessionId = sessionId;
     
