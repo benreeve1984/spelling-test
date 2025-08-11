@@ -16,10 +16,26 @@ export async function POST(request: NextRequest) {
     
     // Convert audio to base64 for GPT-4o audio input
     const audioBuffer = await audioFile.arrayBuffer();
-    const base64Audio = Buffer.from(audioBuffer).toString('base64');
     
-    // Use GPT-4o with audio through direct API call (bypassing SDK types)
-    const response = await openai.chat.completions.create({
+    // Check if audio data is empty
+    if (!audioBuffer || audioBuffer.byteLength === 0) {
+      console.error('Audio buffer is empty');
+      return NextResponse.json(
+        { error: 'Audio file is empty or corrupted' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('Audio buffer size:', audioBuffer.byteLength);
+    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+    console.log('Base64 audio length:', base64Audio.length);
+    
+    // Try GPT-4o with audio input first, with fallback to standard transcription
+    let result: any;
+    
+    try {
+      // Attempt to use GPT-4o with audio input
+      const response = await openai.chat.completions.create({
       model: 'gpt-4o-audio-preview',
       modalities: ['text', 'audio'] as any, // Type assertion to bypass SDK limitation
       messages: [
@@ -83,11 +99,51 @@ export async function POST(request: NextRequest) {
       response_format: { type: 'json_object' },
       max_tokens: 50,
     } as any); // Add type assertion to entire call
+      
+      result = JSON.parse(response.choices[0].message.content || '{}');
+      console.log('GPT-4o audio result:', result);
+      
+    } catch (audioError: any) {
+      console.log('GPT-4o audio failed, using standard transcription + GPT-5-mini');
+      console.error('Audio error:', audioError?.message);
+      
+      // Fallback: Use standard transcription then GPT-5-mini for interpretation
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-1', // Standard transcription model
+        language: 'en',
+        prompt: 'The user is spelling a word phonetically using letter names like "ay", "bee", "see", etc.',
+      });
+      
+      console.log('Whisper transcription:', transcription.text);
+      
+      // Use GPT-5-mini to interpret the phonetic spelling
+      const interpretation = await openai.chat.completions.create({
+        model: 'gpt-5-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Convert phonetic letter pronunciations to actual letters.
+            Common: ay=A, bee=B, see=C, dee=D, ee=E, eff=F, gee=G, aitch=H, eye=I, jay=J, kay=K, el=L, em=M, en=N, oh=O, pee=P, queue=Q, ar=R, ess=S, tea=T, you=U, vee=V, double you=W, ex=X, why=Y, zed/zee=Z.
+            Return JSON: {"spelling": "letters"}`
+          },
+          {
+            role: 'user',
+            content: `Convert: "${transcription.text}" (target word: "${targetWord}")`
+          }
+        ],
+        response_format: { type: 'json_object' },
+        max_tokens: 50,
+      });
+      
+      const spellingResult = JSON.parse(interpretation.choices[0].message.content || '{}');
+      result = {
+        transcription: transcription.text,
+        spelling: spellingResult.spelling || ''
+      };
+    }
     
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    
-    console.log('Transcription:', result.transcription);
-    console.log('Interpreted spelling:', result.spelling);
+    console.log('Final result:', result);
     
     return NextResponse.json({
       text: result.transcription || '',
