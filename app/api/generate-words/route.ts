@@ -113,10 +113,11 @@ export async function POST(request: NextRequest) {
       words: validated.words,
       sessionPrompt: userPrompt,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating words:', error);
+    console.error('Error details:', error?.response?.data || error?.message);
     return NextResponse.json(
-      { error: 'Failed to generate words' },
+      { error: 'Failed to generate words', details: error?.message },
       { status: 500 }
     );
   }

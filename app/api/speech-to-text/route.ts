@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Use the new gpt-4o-audio model for transcription
+    // Use gpt-4o-audio for transcription
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
       model: 'gpt-4o-audio-2025-01-20',

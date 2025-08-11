@@ -38,7 +38,15 @@ export default function SpellingTest() {
       });
       
       const data = await response.json();
-      if (data.words) {
+      
+      // Debug logging
+      console.log('Generate words response:', data);
+      
+      if (data.error) {
+        console.error('API Error:', data.error);
+        console.error('Error details:', data.details);
+        toast.error(`Error: ${data.error} - ${data.details || 'Check console for details'}`);
+      } else if (data.words) {
         setWords(data.words);
         setCurrentWordIndex(0);
         setShowResult(false);
@@ -46,9 +54,9 @@ export default function SpellingTest() {
         setSessionId(null);
         toast.success('Generated 10 new words!');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating words:', error);
-      toast.error('Failed to generate words');
+      toast.error(`Failed to generate words: ${error.message || 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
