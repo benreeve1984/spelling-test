@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         }
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.2,
+      // temperature not supported by gpt-5-mini - uses default of 1
       max_tokens: 50,
     });
     

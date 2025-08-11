@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
             content: `The correct spelling is "${word}". The student spelled it as "${userSpelling}". Give brief, specific feedback about what went wrong and encouragement to try again. Keep it under 2 sentences.`
           }
         ],
-        temperature: 0.7,
+        // temperature not supported by gpt-5-mini - uses default of 1
         max_tokens: 100,
       });
       

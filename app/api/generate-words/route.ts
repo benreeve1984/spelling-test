@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         { role: "user", content: userPrompt }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7,
+      // temperature not supported by gpt-5-mini - uses default of 1
     });
     
     const responseText = completion.choices[0].message.content;
