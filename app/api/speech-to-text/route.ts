@@ -67,22 +67,22 @@ export async function POST(request: NextRequest) {
           role: 'user',
           content: [
             {
-              type: 'text' as const,
+              type: 'text',
               text: `The user is trying to spell the word "${targetWord}". Listen to their phonetic spelling in the audio.`
             },
             {
-              type: 'input_audio' as any, // Type assertion to bypass SDK limitation
+              type: 'input_audio',
               input_audio: {
                 data: base64Audio,
                 format: 'webm'
               }
-            } as any
-          ]
+            }
+          ] as any // Move type assertion to entire content array
         }
       ],
       response_format: { type: 'json_object' },
       max_tokens: 50,
-    });
+    } as any); // Add type assertion to entire call
     
     const result = JSON.parse(response.choices[0].message.content || '{}');
     
