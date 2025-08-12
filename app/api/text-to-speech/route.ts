@@ -3,7 +3,9 @@ import openai from '@/app/lib/openai';
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, voice = 'ballad', speed = 1.0 } = await request.json();
+    // OpenAI TTS voices: alloy, echo, fable, onyx, nova, shimmer
+    // shimmer tends to sound more British than the others
+    const { text, voice = 'shimmer', speed = 1.0 } = await request.json();
     
     if (!text) {
       return NextResponse.json(
@@ -12,14 +14,22 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validate voice option
+    const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+    const selectedVoice = validVoices.includes(voice) ? voice : 'shimmer';
+    
+    console.log('TTS request:', { voice: selectedVoice, speed, textLength: text.length });
+    
     const mp3 = await openai.audio.speech.create({
       model: 'tts-1',
-      voice: voice,
+      voice: selectedVoice as any, // Type assertion for voice parameter
       input: text,
       speed: speed,
     });
     
     const buffer = Buffer.from(await mp3.arrayBuffer());
+    
+    console.log('TTS response buffer size:', buffer.length);
     
     return new NextResponse(buffer, {
       headers: {
@@ -27,10 +37,15 @@ export async function POST(request: NextRequest) {
         'Content-Length': buffer.length.toString(),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating speech:', error);
+    console.error('Error details:', error?.response?.data || error?.message);
     return NextResponse.json(
-      { error: 'Failed to generate speech' },
+      { 
+        error: 'Failed to generate speech',
+        details: error?.message || 'Unknown error',
+        voice: voice
+      },
       { status: 500 }
     );
   }
