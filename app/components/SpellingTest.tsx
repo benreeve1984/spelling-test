@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Mic, Volume2, ChevronRight, RefreshCw } from 'lucide-react';
 // Removed Link/history UI
 import toast, { Toaster } from 'react-hot-toast';
@@ -223,11 +223,7 @@ export default function SpellingTest() {
     setTranscribedText('');
   };
 
-  useEffect(() => {
-    if (currentWord && !showResult) {
-      playWord();
-    }
-  }, [currentWordIndex]);
+  // Removed autoplay to satisfy browser media policies; user must tap the speaker
 
   return (
     <div className="min-h-screen bg-white text-black flex flex-col items-center justify-center p-8">
@@ -285,7 +281,7 @@ export default function SpellingTest() {
               )}
               
               {!showResult && (
-                <div className="text-gray-400">Listen and spell the word</div>
+                <div className="text-gray-400">Tap the speaker to hear the word, then spell it</div>
               )}
             </div>
 

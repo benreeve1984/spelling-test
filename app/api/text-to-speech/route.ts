@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import openai from '@/app/lib/openai';
 
 export async function POST(request: NextRequest) {
-  let requestedVoice = 'alloy';
+  let requestedVoice = 'ballad';
   try {
-    const { text, voice = 'alloy', speed = 1.0 } = await request.json();
+    const { text, voice = 'ballad', speed = 1.0 } = await request.json();
     requestedVoice = voice;
 
     if (!text) {
@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Voices supported vary; keep a safe allowlist
-    const validVoices = ['alloy', 'verse', 'atticus', 'aria', 'shimmer', 'nova', 'onyx', 'echo', 'fable'];
-    const selectedVoice = validVoices.includes(voice) ? voice : 'alloy';
+    const validVoices = ['ballad', 'alloy', 'verse', 'atticus', 'aria', 'shimmer', 'nova', 'onyx', 'echo', 'fable'];
+    const selectedVoice = validVoices.includes(voice) ? voice : 'ballad';
 
     console.log('TTS request:', { voice: selectedVoice, speed, textLength: text.length });
 
