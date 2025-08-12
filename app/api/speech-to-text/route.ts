@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           }
         ],
         response_format: { type: 'json_object' },
-        max_completion_tokens: 50, // Use max_completion_tokens for gpt-5-mini
+        max_tokens: 50,
       });
       
       const spellingResult = JSON.parse(interpretation.choices[0].message.content || '{}');
