@@ -144,10 +144,21 @@ export default function SpellingTest() {
     const audioDuration = Date.now() - recordingStartTimeRef.current;
     
     try {
-      // Create a proper audio file with the correct extension
+      // Log audio blob info for debugging
+      console.log('Audio blob size:', audioBlob.size);
+      console.log('Audio blob type:', audioBlob.type);
+      
+      if (audioBlob.size === 0) {
+        throw new Error('Recording is empty - please try again');
+      }
+      
+      // Create a proper audio file with the correct MIME type
       const audioFile = new File([audioBlob], 'recording.webm', { 
-        type: audioBlob.type || 'audio/webm' 
+        type: 'audio/webm;codecs=opus' 
       });
+      
+      console.log('Audio file size:', audioFile.size);
+      console.log('Audio file type:', audioFile.type);
       
       const formData = new FormData();
       formData.append('audio', audioFile);

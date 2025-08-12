@@ -7,9 +7,24 @@ export async function POST(request: NextRequest) {
     const audioFile = formData.get('audio') as File;
     const targetWord = formData.get('targetWord') as string;
     
+    console.log('Received audio file:', {
+      name: audioFile?.name,
+      size: audioFile?.size,
+      type: audioFile?.type,
+    });
+    
     if (!audioFile) {
       return NextResponse.json(
         { error: 'Audio file is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Check file size first
+    if (audioFile.size === 0) {
+      console.error('Audio file has zero size');
+      return NextResponse.json(
+        { error: 'Audio file is empty or corrupted' },
         { status: 400 }
       );
     }
@@ -19,7 +34,7 @@ export async function POST(request: NextRequest) {
     
     // Check if audio data is empty
     if (!audioBuffer || audioBuffer.byteLength === 0) {
-      console.error('Audio buffer is empty');
+      console.error('Audio buffer is empty after conversion');
       return NextResponse.json(
         { error: 'Audio file is empty or corrupted' },
         { status: 400 }
