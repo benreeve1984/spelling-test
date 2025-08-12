@@ -1,21 +1,31 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, ChevronRight, RefreshCw, Check, X, History } from 'lucide-react';
-import Link from 'next/link';
+import { Mic, Volume2, ChevronRight, RefreshCw } from 'lucide-react';
+// Removed Link/history UI
 import toast, { Toaster } from 'react-hot-toast';
 import { Word } from '@/app/types';
 
+// Fixed sample words (British English)
+const SAMPLE_WORDS: Word[] = [
+  { word: 'colour', difficulty: 4, contextSentence: 'The colour of the sky changed at sunset.', phoneticPattern: 'our vs or' },
+  { word: 'favourite', difficulty: 5, contextSentence: 'Chocolate is her favourite flavour.', phoneticPattern: 'our vs or' },
+  { word: 'realise', difficulty: 5, contextSentence: 'I didn’t realise the time.', phoneticPattern: 'ise vs ize' },
+  { word: 'theatre', difficulty: 5, contextSentence: 'We went to the theatre to see a play.' },
+  { word: 'centre', difficulty: 4, contextSentence: 'Meet me in the town centre.' },
+  { word: 'defence', difficulty: 6, contextSentence: 'Their defence was strong throughout the match.', phoneticPattern: 'ce vs se' },
+  { word: 'jewellery', difficulty: 7, contextSentence: 'She keeps her jewellery in a small box.' },
+  { word: 'travelling', difficulty: 5, contextSentence: 'He enjoys travelling by train.' },
+  { word: 'programme', difficulty: 6, contextSentence: 'The programme starts at eight o’clock.' },
+  { word: 'organisation', difficulty: 7, contextSentence: 'The charity is a well-known organisation.' },
+];
+
 export default function SpellingTest() {
-  const [words, setWords] = useState<Word[]>([]);
+  const [words, setWords] = useState<Word[]>(SAMPLE_WORDS);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [userPrompt, setUserPrompt] = useState('');
-  const [useHistory, setUseHistory] = useState(true);
   const [showResult, setShowResult] = useState(false);
   const [transcribedText, setTranscribedText] = useState<string>('');
   const [lastResult, setLastResult] = useState<{
@@ -30,40 +40,6 @@ export default function SpellingTest() {
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentWord = words[currentWordIndex];
-
-  const generateWords = async () => {
-    setIsGenerating(true);
-    try {
-      const response = await fetch('/api/generate-words', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userPrompt, useHistory }),
-      });
-      
-      const data = await response.json();
-      
-      // Debug logging
-      console.log('Generate words response:', data);
-      
-      if (data.error) {
-        console.error('API Error:', data.error);
-        console.error('Error details:', data.details);
-        toast.error(`Error: ${data.error} - ${data.details || 'Check console for details'}`);
-      } else if (data.words) {
-        setWords(data.words);
-        setCurrentWordIndex(0);
-        setShowResult(false);
-        setLastResult(null);
-        setSessionId(null);
-        toast.success('Generated 10 new words!');
-      }
-    } catch (error: any) {
-      console.error('Error generating words:', error);
-      toast.error(`Failed to generate words: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const playWord = async () => {
     if (!currentWord || isPlayingAudio) return;
@@ -213,26 +189,6 @@ export default function SpellingTest() {
       
       const result = await checkResponse.json();
       
-      // Save attempt
-      await fetch('/api/save-attempt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          word: currentWord.word,
-          userSpelling: result.userSpelling,
-          isCorrect: result.isCorrect,
-          feedback: result.feedback,
-          audioDurationMs: audioDuration,
-          sessionPrompt: userPrompt,
-          difficultySetting: useHistory ? 'adaptive' : 'manual',
-        }),
-      }).then(res => res.json()).then(data => {
-        if (data.sessionId && !sessionId) {
-          setSessionId(data.sessionId);
-        }
-      });
-      
       setLastResult(result);
       setShowResult(true);
       
@@ -256,8 +212,15 @@ export default function SpellingTest() {
       setLastResult(null);
       setTranscribedText('');
     } else {
-      toast.success('Test completed! Generate new words to continue.');
+      toast.success('Set completed! Tap Restart to try again.');
     }
+  };
+
+  const restartSet = () => {
+    setCurrentWordIndex(0);
+    setShowResult(false);
+    setLastResult(null);
+    setTranscribedText('');
   };
 
   useEffect(() => {
@@ -272,67 +235,10 @@ export default function SpellingTest() {
       
       <div className="w-full max-w-2xl space-y-8">
         {/* Header */}
-        <div className="relative">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold">Spelling Test</h1>
-            <p className="text-gray-600">Listen to the word and spell it phonetically</p>
-          </div>
-          
-          {/* History Link */}
-          <Link 
-            href="/history"
-            className="absolute right-0 top-0 p-3 hover:bg-gray-100 rounded-lg transition-colors group"
-            title="View History"
-          >
-            <History className="w-5 h-5 text-gray-600 group-hover:text-black" />
-          </Link>
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold">Spelling Test</h1>
+          <p className="text-gray-600">British English words — listen and spell phonetically</p>
         </div>
-
-        {/* Word Generation */}
-        {!words.length && (
-          <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                Prompt for word generation (optional)
-              </label>
-              <input
-                type="text"
-                value={userPrompt}
-                onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder="e.g., words with 'ph' sounds, tricky spellings for 11-year-olds"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="useHistory"
-                checked={useHistory}
-                onChange={(e) => setUseHistory(e.target.checked)}
-                className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
-              />
-              <label htmlFor="useHistory" className="text-sm text-gray-700">
-                Adapt difficulty based on performance
-              </label>
-            </div>
-            
-            <button
-              onClick={generateWords}
-              disabled={isGenerating}
-              className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:bg-gray-400"
-            >
-              {isGenerating ? (
-                <span className="flex items-center justify-center">
-                  <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                  Generating...
-                </span>
-              ) : (
-                'Generate Words'
-              )}
-            </button>
-          </div>
-        )}
 
         {/* Current Word */}
         {currentWord && (
@@ -386,11 +292,7 @@ export default function SpellingTest() {
             {/* Recording Button */}
             <div className="flex flex-col items-center space-y-4">
               <button
-                onMouseDown={startRecording}
-                onMouseUp={stopRecording}
-                onMouseLeave={stopRecording}
-                onTouchStart={startRecording}
-                onTouchEnd={stopRecording}
+                onClick={() => (isRecording ? stopRecording() : startRecording())}
                 disabled={isLoading || showResult}
                 className={`w-24 h-24 rounded-full transition-all ${
                   isRecording
@@ -400,14 +302,12 @@ export default function SpellingTest() {
               >
                 {isLoading ? (
                   <RefreshCw className="w-8 h-8 animate-spin" />
-                ) : isRecording ? (
-                  <Mic className="w-8 h-8" />
                 ) : (
-                  <MicOff className="w-8 h-8" />
+                  <Mic className="w-8 h-8" />
                 )}
               </button>
               <p className="text-sm text-gray-600">
-                {isRecording ? 'Release to stop' : 'Hold to record'}
+                {isRecording ? 'Tap to stop' : 'Tap to record'}
               </p>
             </div>
 
@@ -454,13 +354,13 @@ export default function SpellingTest() {
               </div>
             )}
 
-            {/* Generate New Words */}
+            {/* Restart Set when finished */}
             {currentWordIndex === words.length - 1 && showResult && (
               <button
-                onClick={generateWords}
+                onClick={restartSet}
                 className="w-full bg-gray-100 text-black py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors"
               >
-                Generate New Words
+                Restart Set
               </button>
             )}
           </div>
