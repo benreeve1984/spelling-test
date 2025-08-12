@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import openai from '@/app/lib/openai';
 
 export async function POST(request: NextRequest) {
+  let requestedVoice = 'shimmer'; // Default voice
+  
   try {
     // OpenAI TTS voices: alloy, echo, fable, onyx, nova, shimmer
     // shimmer tends to sound more British than the others
     const { text, voice = 'shimmer', speed = 1.0 } = await request.json();
+    requestedVoice = voice; // Store for error handling
     
     if (!text) {
       return NextResponse.json(
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
       { 
         error: 'Failed to generate speech',
         details: error?.message || 'Unknown error',
-        voice: voice
+        voice: requestedVoice
       },
       { status: 500 }
     );
