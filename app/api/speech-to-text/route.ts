@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       prompt: 'The user is spelling a word phonetically using letter names like "ay", "bee", "see", etc.',
     });
 
-    const rawText = transcription.text || '';
+    const rawText = (transcription.text || '').trim();
 
     // Map phonetic letters to actual letters using a lightweight model
     const interpretation: any = await openai.responses.create({
@@ -32,9 +32,29 @@ export async function POST(request: NextRequest) {
         `Convert: "${rawText}"${targetWord ? ` (target word: "${targetWord}")` : ''}`,
     });
 
-    const interpretationText = interpretation.output_text ?? interpretation?.choices?.[0]?.message?.content ?? '{}';
-    const spellingJson = JSON.parse(interpretationText || '{}');
-    const spelled = spellingJson.spelling || '';
+    const interpretationText = (interpretation.output_text ?? interpretation?.choices?.[0]?.message?.content ?? '').trim();
+
+    let spelled = '';
+    try {
+      if (interpretationText) {
+        const spellingJson = JSON.parse(interpretationText);
+        spelled = (spellingJson.spelling || '').toString();
+      }
+    } catch (_) {
+      // Fallback: handle input like "C-O-L-O-U-R" → "colour"
+      const lettersOnly = rawText.replace(/[^A-Za-z]/g, '');
+      if (lettersOnly.length >= 2) {
+        spelled = lettersOnly.toLowerCase();
+      }
+    }
+
+    // If we still couldn't interpret, ask user to try again gracefully
+    if (!spelled) {
+      return NextResponse.json(
+        { error: 'could_not_understand', details: "We didn't catch that clearly. Please record again." },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({ text: rawText, spelledWord: spelled });
   } catch (error: any) {

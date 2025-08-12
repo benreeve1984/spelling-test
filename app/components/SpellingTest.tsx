@@ -165,10 +165,18 @@ export default function SpellingTest() {
       });
       
       const transcriptionData = await transcriptionResponse.json();
-      
-      if (transcriptionData.error) {
+
+      if (!transcriptionResponse.ok || transcriptionData.error) {
         console.error('STT API Error:', transcriptionData);
-        throw new Error(transcriptionData.details || transcriptionData.error);
+        const message =
+          transcriptionData?.details ||
+          transcriptionData?.error ||
+          'We did not hear that clearly. Please try recording again.';
+        toast(message);
+        setShowResult(false);
+        setLastResult(null);
+        setTranscribedText('');
+        return; // Graceful early exit
       }
       
       const { text: rawTranscription, spelledWord } = transcriptionData;
@@ -197,9 +205,13 @@ export default function SpellingTest() {
       } else {
         toast.error('Not quite right. Try again!');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing recording:', error);
-      toast.error('Failed to process recording');
+      const friendly =
+        error?.message?.includes('JSON')
+          ? "We couldn't interpret that. Please record your letters clearly (e.g., 'cee oh el oh you ar')."
+          : 'Failed to process recording. Please try again.';
+      toast.error(friendly);
     } finally {
       setIsLoading(false);
     }
