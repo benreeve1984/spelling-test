@@ -3,7 +3,7 @@ import openai from '@/app/lib/openai';
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, voice = 'alloy', speed = 1.0 } = await request.json();
+    const { text, voice = 'ballad', speed = 1.0 } = await request.json();
     
     if (!text) {
       return NextResponse.json(

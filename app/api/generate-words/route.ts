@@ -18,16 +18,18 @@ export async function POST(request: NextRequest) {
   try {
     const { prompt, useHistory } = await request.json();
     
-    let systemPrompt = `You are a spelling test word generator. Generate exactly 10 words appropriate for a spelling test.
+    let systemPrompt = `You are a British spelling test word generator. Generate exactly 10 words appropriate for a spelling test.
+    IMPORTANT: Use British English spelling exclusively (e.g., "colour" not "color", "favourite" not "favorite", "realise" not "realize", "centre" not "center", "theatre" not "theater", "defence" not "defense").
+    
     Return the words in JSON format with each word having:
-    - word: the spelling word
+    - word: the spelling word (in British English)
     - difficulty: difficulty level from 1-10
-    - contextSentence: a natural sentence using the word
+    - contextSentence: a natural sentence using the word (also using British spelling)
     - phoneticPattern: any notable phonetic pattern (optional)
     
-    Make the words educational and appropriate for spelling practice.`;
+    Make the words educational and appropriate for spelling practice in British English.`;
     
-    let userPrompt = prompt || "Generate 10 spelling words appropriate for an 11-year-old student.";
+    let userPrompt = prompt || "Generate 10 spelling words appropriate for an 11-year-old British student. Use British English spelling only.";
     
     // If using history, fetch recent performance
     if (useHistory && supabase) {

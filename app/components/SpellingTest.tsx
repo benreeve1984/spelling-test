@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, ChevronRight, RefreshCw, Check, X } from 'lucide-react';
+import { Mic, MicOff, Volume2, ChevronRight, RefreshCw, Check, X, History } from 'lucide-react';
+import Link from 'next/link';
 import toast, { Toaster } from 'react-hot-toast';
 import { Word } from '@/app/types';
 
@@ -11,6 +12,7 @@ export default function SpellingTest() {
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [userPrompt, setUserPrompt] = useState('');
   const [useHistory, setUseHistory] = useState(true);
@@ -25,6 +27,7 @@ export default function SpellingTest() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingStartTimeRef = useRef<number>(0);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentWord = words[currentWordIndex];
 
@@ -63,9 +66,16 @@ export default function SpellingTest() {
   };
 
   const playWord = async () => {
-    if (!currentWord) return;
+    if (!currentWord || isPlayingAudio) return;
+    
+    // Stop any currently playing audio
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
     
     try {
+      setIsPlayingAudio(true);
       const text = `The word is: ${currentWord.word}. ${currentWord.contextSentence}`;
       const response = await fetch('/api/text-to-speech', {
         method: 'POST',
@@ -76,10 +86,18 @@ export default function SpellingTest() {
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
+      
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        currentAudioRef.current = null;
+      };
+      
       await audio.play();
     } catch (error) {
       console.error('Error playing word:', error);
       toast.error('Failed to play word');
+      setIsPlayingAudio(false);
     }
   };
 
@@ -254,9 +272,20 @@ export default function SpellingTest() {
       
       <div className="w-full max-w-2xl space-y-8">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold">Spelling Test</h1>
-          <p className="text-gray-600">Listen to the word and spell it phonetically</p>
+        <div className="relative">
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl font-bold">Spelling Test</h1>
+            <p className="text-gray-600">Listen to the word and spell it phonetically</p>
+          </div>
+          
+          {/* History Link */}
+          <Link 
+            href="/history"
+            className="absolute right-0 top-0 p-3 hover:bg-gray-100 rounded-lg transition-colors group"
+            title="View History"
+          >
+            <History className="w-5 h-5 text-gray-600 group-hover:text-black" />
+          </Link>
         </div>
 
         {/* Word Generation */}
@@ -331,22 +360,20 @@ export default function SpellingTest() {
             <div className="bg-gray-50 rounded-lg p-8 text-center space-y-4">
               <button
                 onClick={playWord}
-                className="mx-auto flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow"
+                disabled={isPlayingAudio}
+                className={`mx-auto flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-md transition-all ${
+                  isPlayingAudio ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg'
+                }`}
               >
-                <Volume2 className="w-6 h-6" />
+                <Volume2 className={`w-6 h-6 ${isPlayingAudio ? 'animate-pulse' : ''}`} />
               </button>
               
               {showResult && (
                 <div className="space-y-2">
                   <div className="text-2xl font-bold">{currentWord.word}</div>
                   <div className={`text-lg ${lastResult?.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
-                    Your spelling: {lastResult?.userSpelling}
+                    {lastResult?.isCorrect ? 'Correct!' : `You spelled: ${lastResult?.userSpelling || transcribedText}`}
                   </div>
-                  {transcribedText && (
-                    <div className="text-sm text-gray-500">
-                      What we heard: "{transcribedText}"
-                    </div>
-                  )}
                   <div className="text-sm text-gray-600">{lastResult?.feedback}</div>
                 </div>
               )}
@@ -386,26 +413,44 @@ export default function SpellingTest() {
 
             {/* Actions */}
             {showResult && (
-              <div className="flex justify-center space-x-4">
+              <div className="flex flex-col items-center space-y-3">
+                <div className="flex justify-center space-x-4">
+                  {!lastResult?.isCorrect && (
+                    <button
+                      onClick={() => {
+                        setShowResult(false);
+                        setLastResult(null);
+                        setTranscribedText('');
+                      }}
+                      className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  )}
+                  <button
+                    onClick={nextWord}
+                    disabled={currentWordIndex >= words.length - 1}
+                    className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400 flex items-center"
+                  >
+                    Next Word
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </button>
+                </div>
+                
+                {/* Misheard button */}
                 {!lastResult?.isCorrect && (
                   <button
                     onClick={() => {
                       setShowResult(false);
                       setLastResult(null);
+                      setTranscribedText('');
+                      toast('No problem! Try spelling it again.', { icon: '🎤' });
                     }}
-                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="text-sm text-gray-500 underline hover:text-gray-700"
                   >
-                    Try Again
+                    The app misheard me
                   </button>
                 )}
-                <button
-                  onClick={nextWord}
-                  disabled={currentWordIndex >= words.length - 1}
-                  className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors disabled:bg-gray-400 flex items-center"
-                >
-                  Next Word
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </button>
               </div>
             )}
 
