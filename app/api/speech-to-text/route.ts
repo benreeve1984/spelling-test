@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         }
       ],
       response_format: { type: 'json_object' },
-      max_tokens: 50,
+      // Remove max_tokens/max_completion_tokens - not needed for audio model
     } as any); // Add type assertion to entire call
       
       result = JSON.parse(response.choices[0].message.content || '{}');
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           }
         ],
         response_format: { type: 'json_object' },
-        max_tokens: 50,
+        max_completion_tokens: 50, // Use max_completion_tokens for gpt-5-mini
       });
       
       const spellingResult = JSON.parse(interpretation.choices[0].message.content || '{}');
