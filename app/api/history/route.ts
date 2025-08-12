@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
         feedback,
         attempted_at,
         audio_duration_ms,
-        words (
+        word_id,
+        words!inner (
           word
         )
       `)
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Format the attempts data
-    const formattedAttempts = attempts?.map(attempt => ({
+    const formattedAttempts = attempts?.map((attempt: any) => ({
       id: attempt.id,
       session_id: attempt.session_id,
       word: attempt.words?.word || 'Unknown',
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
     })) || [];
 
     // Format the sessions data
-    const formattedSessions = sessions?.map(session => ({
+    const formattedSessions = sessions?.map((session: any) => ({
       id: session.id,
       created_at: session.created_at,
       prompt: session.prompt,
